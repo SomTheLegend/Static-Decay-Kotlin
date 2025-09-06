@@ -689,52 +689,40 @@ class Game {
      * to move towards the player.
      * They will not move into walls or tiles occupied by other creatures.
      */
-    private fun handleCreatureTurn() {
+      private fun handleCreatureTurn() {
         currentZone.creatures.forEach { creature ->
             if (creature is Anomaly) return@forEach // Anomalies are stationary
 
-            // Calculate Manhattan distance
-            val distance = kotlin.math.abs(creature.x - player.x)
-            + kotlin.math.abs(creature.y - player.y)
+            val distance = kotlin.math.abs(creature.x - player.x) + kotlin.math.abs(creature.y - player.y)
 
             if (distance < 5 && distance > 0) { // Creature is close but not on the same tile
-                var dx = 0
-                var dy = 0
+                val dx = player.x - creature.x
+                val dy = player.y - creature.y
 
-                // Simple pathfinding: move one step towards player
-                if (player.x < creature.x) dx = -1
-                else if (player.x > creature.x) dx = 1
+                // Get possible moves, prioritize moves that close the distance
+                val possibleMoves = mutableListOf<Pair<Int, Int>>()
+                if (dx != 0) possibleMoves.add(Pair(kotlin.math.sign(dx.toFloat()).toInt(), 0))
+                if (dy != 0) possibleMoves.add(Pair(0, kotlin.math.sign(dy.toFloat()).toInt()))
 
-                if (player.y < creature.y) dy = -1
-                else if (player.y > creature.y) dy = 1
-                
-                // Attempt to move horizontally first, then vertically if horizontal
-                // is blocked or not needed
-                var moved = false
-                if (dx != 0) {
-                    val nextX = creature.x + dx
-                    val nextY = creature.y
-                     if (currentZone.getTile(nextX, nextY) != '#' &&
-                        currentZone.creatures.none { it.x == nextX && it.y == nextY
-                                && it !== creature} && !(player.x == nextX && player.y == nextY)) {
+                possibleMoves.shuffle() // Randomize movement choice
+
+                for (move in possibleMoves) {
+                    val nextX = creature.x + move.first
+                    val nextY = creature.y + move.second
+
+                    val isWall = currentZone.getTile(nextX, nextY) == '#'
+                    val isOccupiedByOtherCreature = currentZone.creatures.any { it.x == nextX && it.y == nextY && it !== creature }
+                    val isPlayer = player.x == nextX && player.y == nextY
+
+                    if (!isWall && !isOccupiedByOtherCreature && !isPlayer) {
                         creature.x = nextX
-                        moved = true
-                    }
-                }
-
-                if (!moved && dy != 0) { // If didn't move horizontally, try vertically
-                    val nextX = creature.x // Use current x if only moving vertically
-                    val nextY = creature.y + dy
-                     if (currentZone.getTile(nextX, nextY) != '#' &&
-                        currentZone.creatures.none { it.x == nextX && it.y == nextY
-                                && it !== creature} && !(player.x == nextX && player.y == nextY) ) {
                         creature.y = nextY
+                        break // Move done for this creature
                     }
                 }
             }
         }
     }
-
     /**
      * Updates player stats that change over time, such as sanity loss in certain zones.
      * Also checks for game over conditions related to player stats (e.g., HP <= 0).
@@ -787,3 +775,4 @@ class Game {
         }
     }
 }
+
